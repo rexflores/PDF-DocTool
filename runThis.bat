@@ -5,7 +5,7 @@ cd /d "%~dp0"
 powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -Command "Invoke-Expression $([System.IO.File]::ReadAllText('%~f0'))"
 goto :eof
 #>
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 # PDF Record Tool - GUI Version
 # Self-contained: does not dot-source PDFRecordTool.ps1
 # Requires PDFRecordTool.ps1 in same folder only for Invoke-PDF24Merge,
