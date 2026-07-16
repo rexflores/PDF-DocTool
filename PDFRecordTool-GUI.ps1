@@ -1,4 +1,4 @@
-# PDF Record Tool - GUI Version
+﻿# PDF Record Tool - GUI Version
 # Self-contained: does not dot-source PDFRecordTool.ps1
 # Requires PDFRecordTool.ps1 in same folder only for Invoke-PDF24Merge,
 # Send-ToRecycleBin, Build-RecordFilename, Build-RecordFolderPath.
@@ -189,20 +189,20 @@ function Limit-YearInput {
 # ---------------------------------------------------------------------------
 # NAME SUGGESTIONS
 # ---------------------------------------------------------------------------
-$script:Names = @()
+$global:Names = @()
 function Load-Names {
     param([string]$Dir)
     $t=Join-Path $Dir "names.txt"
     $c=Join-Path $Dir "names.csv"
     if (Test-Path $t) {
-        $script:Names=Get-Content $t -Encoding UTF8|Where-Object{$_.Trim()-ne""}|Sort-Object
-        return "names.txt ($($script:Names.Count) names loaded)"
+        $global:Names=Get-Content $t -Encoding UTF8|Where-Object{$_.Trim()-ne""}|Sort-Object
+        return "names.txt ($($global:Names.Count) names loaded)"
     }
     if (Test-Path $c) {
-        $script:Names=Import-Csv $c|ForEach-Object{$_.Name}|Where-Object{$_-ne""}|Sort-Object
-        return "names.csv ($($script:Names.Count) names loaded)"
+        $global:Names=Import-Csv $c|ForEach-Object{$_.Name}|Where-Object{$_-ne""}|Sort-Object
+        return "names.csv ($($global:Names.Count) names loaded)"
     }
-    $script:Names=@()
+    $global:Names=@()
     return "No names file found (create names.txt in script folder)"
 }
 function Wire-AC {
@@ -210,12 +210,12 @@ function Wire-AC {
     $CB.AutoCompleteMode="SuggestAppend"
     $CB.AutoCompleteSource="CustomSource"
     $ac=New-Object System.Windows.Forms.AutoCompleteStringCollection
-    foreach ($n in $script:Names){[void]$ac.Add($n)}
+    foreach ($n in $global:Names){[void]$ac.Add($n)}
     $CB.AutoCompleteCustomSource=$ac
     $CB.Add_TextChanged({
         $q=$CB.Text
         if($q.Length -lt 2){return}
-        $m=$script:Names|Where-Object{$_ -like "*$q*"}|Select-Object -First 30
+        $m=$global:Names|Where-Object{$_ -like "*$q*"}|Select-Object -First 30
         $CB.Items.Clear()
         foreach($x in $m){[void]$CB.Items.Add($x)}
     })
@@ -442,8 +442,8 @@ function Show-MergeWin {
     $script:qIdx=0
     $script:qDone=0
     $script:qTotal=0
-    $script:foundPdfs=@()
-    $script:allPdfs=$null
+    $global:foundPdfs=@()
+    $global:allPdfs=$null
 
     function UpdatePreview {
         $p=Get-Preview -Root $Root -Name $nameCB.Text.Trim() -Status $stDD.SelectedItem `
@@ -549,16 +549,16 @@ function Show-MergeWin {
             $resLB.Items.Clear()
             return
         }
-        if($script:allPdfs -eq $null){
+        if($global:allPdfs -eq $null){
             $resLB.Items.Clear()
             [void]$resLB.Items.Add("Loading files...")
             G-SetStatus $sb "Caching file list for fast search..."
             [System.Windows.Forms.Application]::DoEvents()
-            $script:allPdfs=@(Get-ChildItem $Root -Recurse -File -Filter "*.pdf")
+            $global:allPdfs=@(Get-ChildItem $Root -Recurse -File -Filter "*.pdf")
             G-SetStatus $sb "Ready."
         }
         $tokens=($query -replace ',', ' ') -split '\s+'|Where-Object{$_ -ne ''}
-        $matched=@($script:allPdfs|Where-Object{
+        $matched=@($global:allPdfs|Where-Object{
             $pathStr = $_.FullName
             $ok=$true
             foreach($tok in $tokens){
@@ -568,8 +568,8 @@ function Show-MergeWin {
         })
         $resLB.Items.Clear()
         if($matched.Count -gt 0){
-            $script:foundPdfs=@($matched|Select-Object -First 50)
-            foreach($f in $script:foundPdfs){
+            $global:foundPdfs=@($matched|Select-Object -First 50)
+            foreach($f in $global:foundPdfs){
                 $leaf = $f.Name
                 $dir = Split-Path $f.DirectoryName -Leaf
                 [void]$resLB.Items.Add("$leaf [$dir]")
@@ -577,7 +577,7 @@ function Show-MergeWin {
             $cnt=$matched.Count
             G-SetStatus $sb "$cnt result(s)$(if($cnt -gt 50){' (showing first 50)'}else{''})"
         } else {
-            $script:foundPdfs=@()
+            $global:foundPdfs=@()
             G-SetStatus $sb "No files found for '$query'." "warning"
         }
     }.GetNewClosure()
@@ -591,7 +591,7 @@ function Show-MergeWin {
 
     $resLB.Add_SelectedIndexChanged({
         $idx=$resLB.SelectedIndex
-        if($idx -ge 0 -and $idx -lt $script:foundPdfs.Count){SelectExisting $script:foundPdfs[$idx].FullName}
+        if($idx -ge 0 -and $idx -lt $global:foundPdfs.Count){SelectExisting $global:foundPdfs[$idx].FullName}
     })
 
     $brwBtn.Add_Click({
@@ -678,7 +678,7 @@ function Show-MergeWin {
 
             $script:qDone++;UpdateProgress
             G-SetStatus $sb "Merged: $(Split-Path $outPath -Leaf)" "success"
-            $script:allPdfs=$null
+            $global:allPdfs=$null
 
             # Remove the processed item from the visible queue list
             if($script:qIdx -lt $ql.Items.Count){
@@ -797,13 +797,13 @@ function Show-MergeAsNewWin {
 
     # State
     $q=[System.Collections.Generic.List[string]]::new()
-    $script:manExPdf=""
-    $script:manTargetDir=""
-    $script:manQIdx=0
+    $global:manExPdf=""
+    $global:manTargetDir=""
+    $global:manQIdx=0
     $script:manQDone=0
-    $script:manQTotal=0
-    $script:foundPdfs=@()
-    $script:allPdfs=$null
+    $global:manQTotal=0
+    $global:foundPdfs=@()
+    $global:allPdfs=$null
 
     function UpdateMANPreview {
         $p=Get-Preview -Root $Root -Name $nameCB.Text.Trim() -Status $stDD.SelectedItem `
@@ -830,7 +830,7 @@ function Show-MergeAsNewWin {
     $latBox.Add_TextChanged({UpdateMANPreview})
     $oldBox.Add_TextChanged({UpdateMANPreview})
 
-    function UpdateMANProgress { $pgLbl.Text="$($script:manQDone) of $($script:manQTotal) processed" }
+    function UpdateMANProgress { $pgLbl.Text="$($script:manQDone) of $($global:manQTotal) processed" }
 
     function ShowFolderContents {
         param([string]$Dir)
@@ -846,13 +846,13 @@ function Show-MergeAsNewWin {
 
     function LoadMANCurrent {
         if($q.Count -eq 0){$newLbl.Text="(none)";$newLbl.ForeColor=$C_SUBTEXT;$viewNBtn.Enabled=$false;return}
-        $idx=$script:manQIdx
+        $idx=$global:manQIdx
         if($idx -ge $q.Count){return}
         $path=$q[$idx];$name=Split-Path $path -Leaf
         $newLbl.Text=$name;$newLbl.ForeColor=$C_TEXT;$viewNBtn.Enabled=$true
         $ql.SelectedIndex=$idx
-        $script:manExPdf=""
-        $script:manTargetDir=""
+        $global:manExPdf=""
+        $global:manTargetDir=""
         $exLbl.Text="(none selected)";$exLbl.ForeColor=$C_SUBTEXT;$viewEBtn.Enabled=$false
         $saveBtn.Enabled=$false;$skipFBtn.Enabled=$true
         $resLB.Items.Clear();UpdateMANProgress
@@ -867,8 +867,8 @@ function Show-MergeAsNewWin {
 
     function SelectExistingMAN { param([string]$Path)
         if(-not $Path -or -not (Test-Path $Path)){return}
-        $script:manExPdf=$Path
-        $script:manTargetDir=Split-Path $Path -Parent
+        $global:manExPdf=$Path
+        $global:manTargetDir=Split-Path $Path -Parent
         try{$rel=[System.IO.Path]::GetRelativePath($Root,$Path)}catch{$rel=$Path}
         $exLbl.Text=$rel;$exLbl.ForeColor=$C_ACCENT;$viewEBtn.Enabled=$true
         $saveBtn.Enabled=$true
@@ -881,8 +881,8 @@ function Show-MergeAsNewWin {
         UpdateMANPreview
 
         # Show what's already in the folder
-        ShowFolderContents $script:manTargetDir
-        G-SetStatus $sb "Target folder: $(Split-Path $script:manTargetDir -Leaf)"
+        ShowFolderContents $global:manTargetDir
+        G-SetStatus $sb "Target folder: $(Split-Path $global:manTargetDir -Leaf)"
     }
 
     $addBtn.Add_Click({
@@ -895,29 +895,29 @@ function Show-MergeAsNewWin {
                 $added++
             }
         }
-        $script:manQTotal += $added
-        if($q.Count -gt 0 -and $script:manQIdx -eq 0){LoadMANCurrent}
+        $global:manQTotal += $added
+        if($q.Count -gt 0 -and $global:manQIdx -eq 0){LoadMANCurrent}
         UpdateMANProgress;G-SetStatus $sb "$($q.Count) file(s) in queue."
     })
 
     $remBtn.Add_Click({
         $idx=$ql.SelectedIndex;if($idx -lt 0){return}
         $q.RemoveAt($idx);$ql.Items.RemoveAt($idx)
-        $script:manQTotal--
-        $script:manQIdx=[Math]::Min($idx,[Math]::Max(0,$q.Count-1))
+        $global:manQTotal--
+        $global:manQIdx=[Math]::Min($idx,[Math]::Max(0,$q.Count-1))
         LoadMANCurrent;UpdateMANProgress
     })
 
     $ql.Add_SelectedIndexChanged({
         $idx=$ql.SelectedIndex
-        if($idx -ge 0 -and $idx -ne $script:manQIdx){$script:manQIdx=$idx;LoadMANCurrent}
+        if($idx -ge 0 -and $idx -ne $global:manQIdx){$global:manQIdx=$idx;LoadMANCurrent}
     })
 
     $viewNBtn.Add_Click({
-        if($script:manQIdx -lt $q.Count){try{Start-Process $q[$script:manQIdx]}catch{}}
+        if($global:manQIdx -lt $q.Count){try{Start-Process $q[$global:manQIdx]}catch{}}
     })
     $viewEBtn.Add_Click({
-        if($script:manExPdf -and (Test-Path $script:manExPdf)){try{Start-Process $script:manExPdf}catch{}}
+        if($global:manExPdf -and (Test-Path $global:manExPdf)){try{Start-Process $global:manExPdf}catch{}}
     })
 
     $doSearch={
@@ -926,16 +926,16 @@ function Show-MergeAsNewWin {
             $resLB.Items.Clear()
             return
         }
-        if($script:allPdfs -eq $null){
+        if($global:allPdfs -eq $null){
             $resLB.Items.Clear()
             [void]$resLB.Items.Add("Loading files...")
             G-SetStatus $sb "Caching file list for fast search..."
             [System.Windows.Forms.Application]::DoEvents()
-            $script:allPdfs=@(Get-ChildItem $Root -Recurse -File -Filter "*.pdf")
+            $global:allPdfs=@(Get-ChildItem $Root -Recurse -File -Filter "*.pdf")
             G-SetStatus $sb "Ready."
         }
         $tokens=($query -replace ',', ' ') -split '\s+'|Where-Object{$_ -ne ''}
-        $matched=@($script:allPdfs|Where-Object{
+        $matched=@($global:allPdfs|Where-Object{
             $pathStr = $_.FullName
             $ok=$true
             foreach($tok in $tokens){
@@ -944,9 +944,9 @@ function Show-MergeAsNewWin {
             $ok
         })
         # Group by parent folder to show unique employee folders
-        $script:foundFolders=@()
+        $global:foundFolders=@()
         if($matched.Count -gt 0){
-            $script:foundFolders=@($matched|Group-Object {$_.DirectoryName}|ForEach-Object{
+            $global:foundFolders=@($matched|Group-Object {$_.DirectoryName}|ForEach-Object{
                 $dirName = Split-Path $_.Name -Leaf
                 $parentName = Split-Path (Split-Path $_.Name -Parent) -Leaf
                 $disp = "$dirName [$parentName]"
@@ -954,11 +954,11 @@ function Show-MergeAsNewWin {
             }|Select-Object -First 50)
         }
         $resLB.Items.Clear()
-        if($script:foundFolders.Count -gt 0){
-            foreach($fd in $script:foundFolders){
+        if($global:foundFolders.Count -gt 0){
+            foreach($fd in $global:foundFolders){
                 [void]$resLB.Items.Add("$($fd.Display) ($($fd.FileCount) file$(if($fd.FileCount -gt 1){'s'}))")
             }
-            $cnt=$script:foundFolders.Count
+            $cnt=$global:foundFolders.Count
             G-SetStatus $sb "$cnt folder(s) found"
         } else {
             G-SetStatus $sb "No folders found for '$query'." "warning"
@@ -974,17 +974,17 @@ function Show-MergeAsNewWin {
 
     $resLB.Add_SelectedIndexChanged({
         $idx=$resLB.SelectedIndex
-        if($idx -ge 0 -and $idx -lt $script:foundFolders.Count){SelectExistingMAN $script:foundFolders[$idx].SampleFile}
+        if($idx -ge 0 -and $idx -lt $global:foundFolders.Count){SelectExistingMAN $global:foundFolders[$idx].SampleFile}
     })
 
     $folderLB.Add_SelectedIndexChanged({
         $idx = $folderLB.SelectedIndex
-        if($idx -ge 0 -and $script:manTargetDir){
+        if($idx -ge 0 -and $global:manTargetDir){
             $item = $folderLB.Items[$idx]
             if($item -match '\.pdf$'){
-                $selPdf = Join-Path $script:manTargetDir $item
+                $selPdf = Join-Path $global:manTargetDir $item
                 if(Test-Path $selPdf){
-                    $script:manExPdf = $selPdf
+                    $global:manExPdf = $selPdf
                     try{$rel=[System.IO.Path]::GetRelativePath($Root,$selPdf)}catch{$rel=$selPdf}
                     $exLbl.Text = $rel
                     
@@ -1003,21 +1003,21 @@ function Show-MergeAsNewWin {
     })
 
     $skipFBtn.Add_Click({
-        $script:manQIdx++;
-        if($script:manQIdx -ge $q.Count){
+        $global:manQIdx++;
+        if($global:manQIdx -ge $q.Count){
             G-SetStatus $sb "Queue complete. $($script:manQDone) processed." "success"
             $saveBtn.Enabled=$false;$skipFBtn.Enabled=$false
         } else {LoadMANCurrent}
     })
 
     $saveBtn.Add_Click({
-        $idx=$script:manQIdx;if($idx -ge $q.Count){return}
+        $idx=$global:manQIdx;if($idx -ge $q.Count){return}
         $src=$q[$idx]
         $name=$nameCB.Text.Trim();$lat=$latBox.Text.Trim()
         $old=$oldBox.Text.Trim();$st=$stDD.SelectedItem;$dept=$dtDD.SelectedItem;$letter=$ltDD.SelectedItem
 
         # --- Validation ---
-        if(-not $script:manTargetDir){
+        if(-not $global:manTargetDir){
             G-SetStatus $sb "Select an existing employee file first." "error";return}
         $nameErr=Test-ValidName $name
         if($nameErr){G-SetStatus $sb $nameErr "error";$nameCB.Focus();return}
@@ -1056,19 +1056,19 @@ function Show-MergeAsNewWin {
 
             $script:manQDone++;UpdateMANProgress
             G-SetStatus $sb "Saved: $outFn" "success"
-            $script:allPdfs=$null
+            $global:allPdfs=$null
 
             # Remove the processed item from the visible queue list
-            if($script:manQIdx -lt $ql.Items.Count){
-                $ql.Items.RemoveAt($script:manQIdx)
-                $q.RemoveAt($script:manQIdx)
+            if($global:manQIdx -lt $ql.Items.Count){
+                $ql.Items.RemoveAt($global:manQIdx)
+                $q.RemoveAt($global:manQIdx)
             }
 
             if($q.Count -eq 0){
                 G-SetStatus $sb "Queue complete. $($script:manQDone) file(s) saved." "success"
                 $win.Close()
             } else {
-                if($script:manQIdx -ge $q.Count){$script:manQIdx=$q.Count-1}
+                if($global:manQIdx -ge $q.Count){$global:manQIdx=$q.Count-1}
                 LoadMANCurrent
             }
         } catch {
@@ -1328,9 +1328,9 @@ function Show-EditRecordWin {
     $saveBtn=G-AccentBtn "Save Changes" 10 $y 140 32;$saveBtn.Enabled=$false;$win.Controls.Add($saveBtn)
     $closeBtn=G-MutedBtn "Cancel" 514 $y 100 32;$win.Controls.Add($closeBtn)
 
-    $script:editPdf=""
-    $script:foundPdfs=@()
-    $script:allPdfs=$null
+    $global:editPdf=""
+    $global:foundPdfs=@()
+    $global:allPdfs=$null
 
     function UpdateEPrev {
         $p=Get-Preview -Root $Root -Name $nameCB.Text.Trim() -Status $stDD.SelectedItem `
@@ -1357,7 +1357,7 @@ function Show-EditRecordWin {
 
     function SelectExistingE {
         param([string]$Path)
-        $script:editPdf=$Path
+        $global:editPdf=$Path
         try{$rel=[System.IO.Path]::GetRelativePath($Root,$Path)}catch{$rel=$Path}
         $exLbl.Text=$rel;$viewEBtn.Enabled=$true;$saveBtn.Enabled=$true
         $m=Get-FileMeta $Path
@@ -1369,7 +1369,7 @@ function Show-EditRecordWin {
         UpdateEPrev
         G-SetStatus $sb "Loaded metadata from selected file."
     }
-    $viewEBtn.Add_Click({try{Start-Process $script:editPdf}catch{}})
+    $viewEBtn.Add_Click({try{Start-Process $global:editPdf}catch{}})
 
     $doSearch={
         $query=$searchBox.Text.Trim()
@@ -1377,16 +1377,16 @@ function Show-EditRecordWin {
             $resLB.Items.Clear()
             return
         }
-        if($script:allPdfs -eq $null){
+        if($global:allPdfs -eq $null){
             $resLB.Items.Clear()
             [void]$resLB.Items.Add("Loading files...")
             G-SetStatus $sb "Caching file list for fast search..."
             [System.Windows.Forms.Application]::DoEvents()
-            $script:allPdfs=@(Get-ChildItem $Root -Recurse -File -Filter "*.pdf")
+            $global:allPdfs=@(Get-ChildItem $Root -Recurse -File -Filter "*.pdf")
             G-SetStatus $sb "Ready."
         }
         $tokens=($query -replace ',', ' ') -split '\s+'|Where-Object{$_ -ne ''}
-        $matched=@($script:allPdfs|Where-Object{
+        $matched=@($global:allPdfs|Where-Object{
             $pathStr = $_.FullName
             $ok=$true
             foreach($tok in $tokens){
@@ -1396,8 +1396,8 @@ function Show-EditRecordWin {
         })
         $resLB.Items.Clear()
         if($matched.Count -gt 0){
-            $script:foundPdfs=@($matched|Select-Object -First 50)
-            foreach($f in $script:foundPdfs){
+            $global:foundPdfs=@($matched|Select-Object -First 50)
+            foreach($f in $global:foundPdfs){
                 $leaf = $f.Name
                 $dir = Split-Path $f.DirectoryName -Leaf
                 [void]$resLB.Items.Add("$leaf [$dir]")
@@ -1405,7 +1405,7 @@ function Show-EditRecordWin {
             $cnt=$matched.Count
             G-SetStatus $sb "$cnt result(s)$(if($cnt -gt 50){' (showing first 50)'}else{''})"
         } else {
-            $script:foundPdfs=@()
+            $global:foundPdfs=@()
             G-SetStatus $sb "No files found for '$query'." "warning"
         }
     }.GetNewClosure()
@@ -1419,7 +1419,7 @@ function Show-EditRecordWin {
 
     $resLB.Add_SelectedIndexChanged({
         $idx=$resLB.SelectedIndex
-        if($idx -ge 0 -and $idx -lt $script:foundPdfs.Count){SelectExistingE $script:foundPdfs[$idx].FullName}
+        if($idx -ge 0 -and $idx -lt $global:foundPdfs.Count){SelectExistingE $global:foundPdfs[$idx].FullName}
     })
     $brwBtn.Add_Click({
         $p=Show-FPicker "Select existing employee PDF to edit" $Root
@@ -1427,7 +1427,7 @@ function Show-EditRecordWin {
     })
 
     $saveBtn.Add_Click({
-        if(-not $script:editPdf -or -not (Test-Path $script:editPdf)){
+        if(-not $global:editPdf -or -not (Test-Path $global:editPdf)){
             G-SetStatus $sb "Select an existing employee PDF first." "error";return}
         
         $name=$nameCB.Text.Trim();$lat=$latBox.Text.Trim()
@@ -1444,7 +1444,7 @@ function Show-EditRecordWin {
             if($oldErr){G-SetStatus $sb "Oldest year: $oldErr" "error";$oldBox.Focus();return}
         } else {$old=$lat}
 
-        $exPdf=$script:editPdf
+        $exPdf=$global:editPdf
         $exDir=Split-Path $exPdf -Parent
         $outFn=Build-RecordFilename -Name $name -LatestYear $lat -OldestYear $old -Department $dept
         $outDir=Build-RecordFolderPath -RootPath $Root -Status $st -Name $name -Letter $letter
@@ -1499,7 +1499,7 @@ function Show-EditRecordWin {
             }
 
             [System.Windows.Forms.MessageBox]::Show("Record updated successfully.","Success","OK","Information")|Out-Null
-            $script:allPdfs=$null
+            $global:allPdfs=$null
             $win.Close()
         } catch {
             Write-ErrorLog "Edit Record failed" $_.Exception
@@ -1616,3 +1616,4 @@ $editMainBtn.Add_Click({
 $main.Add_FormClosing({ SaveSettings })
 
 [void]$main.ShowDialog()
+
